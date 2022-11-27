@@ -271,12 +271,17 @@ STATIC_UNIT_TESTED void updateLedCount(void)
     setUsedLedCount(ledCounts.count);
 }
 
+void updateBlinkPauses() {
+    memset(ledCounts.blinkPauses, 0, sizeof(ledCounts.blinkPauses));
+}
+
 void reevaluateLedConfig(void)
 {
     updateLedCount();
     updateDimensions();
     updateLedRingCounts();
     updateRequiredOverlay();
+    updateBlinkPauses();
 }
 
 // get specialColor by index
@@ -302,9 +307,10 @@ bool parseLedStripConfig(int ledIndex, const char *config)
         FUNCTIONS,
         RING_COLORS,
         BLINK_PATTERN,
+        BLINK_PAUSE,
         PARSE_STATE_COUNT
     };
-    static const char chunkSeparators[PARSE_STATE_COUNT] = {',', ':', ':', ':', ':', '\0'};
+    static const char chunkSeparators[PARSE_STATE_COUNT] = {',', ':', ':', ':', ':', ':', '\0'};
 
     ledConfig_t *ledConfig = &ledStripStatusModeConfigMutable()->ledConfigs[ledIndex];
     memset(ledConfig, 0, sizeof(ledConfig_t));
@@ -313,7 +319,7 @@ bool parseLedStripConfig(int ledIndex, const char *config)
     int baseFunction = 0;
     int overlay_flags = 0;
     int direction_flags = 0;
-    uint64_t blinkPattern = 0;
+    uint64_t blinkPattern = 0, blinkPause = 0;
 
     for (enum parseState_e parseState = 0; parseState < PARSE_STATE_COUNT; parseState++) {
         char chunk[CHUNK_BUFFER_SIZE];
@@ -371,12 +377,15 @@ bool parseLedStripConfig(int ledIndex, const char *config)
             case BLINK_PATTERN:
                 blinkPattern = atoui(chunk);
                 break;
+            case BLINK_PAUSE:
+                blinkPause = atoui(chunk);
+                break;
 
             case PARSE_STATE_COUNT:; // prevent warning
         }
     }
 
-    *ledConfig = DEFINE_LED(x, y, color, direction_flags, baseFunction, overlay_flags, 0, blinkPattern);
+    *ledConfig = DEFINE_LED(x, y, color, direction_flags, baseFunction, overlay_flags, 0, blinkPattern, blinkPause);
 
     reevaluateLedConfig();
 
@@ -409,7 +418,7 @@ void generateLedConfig(ledConfig_t *ledConfig, char *ledConfigBuffer, size_t buf
     *fptr = 0;
 
     // TODO - check buffer length
-    tfp_sprintf(ledConfigBuffer, "%u,%u:%s:%s:%u:%u", ledGetX(ledConfig), ledGetY(ledConfig), directions, baseFunctionOverlays, ledGetColor(ledConfig), ledGetBlinkPattern(ledConfig));
+    tfp_sprintf(ledConfigBuffer, "%u,%u:%s:%s:%u:%u:%u", ledGetX(ledConfig), ledGetY(ledConfig), directions, baseFunctionOverlays, ledGetColor(ledConfig), ledGetBlinkPattern(ledConfig), ledGetBlinkPause(ledConfig));
 }
 
 typedef enum {
@@ -943,15 +952,17 @@ static void applyLarsonScannerLayer(bool updateNow, timeUs_t *timer)
     }
 }
 
-// blink twice, then wait ; either always or just when landing
 static void applyLedBlinkLayer(bool updateNow, timeUs_t *timer)
 {
     const int patternBits = 15;
     static int currentPatternBit = patternBits;
+    bool finishedPattern = false;
 
     if (updateNow) {
-        if (--currentPatternBit == -1)
+        if (--currentPatternBit == -1) {
             currentPatternBit = patternBits;
+            finishedPattern = true;
+        }
 
          *timer += ledStripConfig()->ledstrip_blink_period_ms * 1000;
     }
@@ -960,8 +971,15 @@ static void applyLedBlinkLayer(bool updateNow, timeUs_t *timer)
 
     for (int i = 0; i < ledCounts.count; ++i) {
         const ledConfig_t *ledConfig = &ledStripStatusModeConfig()->ledConfigs[i];
-        bool ledOn = ledGetBlinkPattern(ledConfig) & patternMask;
+        
+        int blinkPause = ledGetBlinkPause(ledConfig);
+        if (blinkPause > 0 && finishedPattern) {
+            if (++ledCounts.blinkPauses[i] > blinkPause) {
+                ledCounts.blinkPauses[i] = 0;
+            }
+        }
 
+        bool ledOn = ledCounts.blinkPauses[i] > 0 ? false : ledGetBlinkPattern(ledConfig) & patternMask;
         if (!ledOn && ledGetOverlayBit(ledConfig, LED_OVERLAY_BLINK)) {
             setLedHsv(i, getSC(LED_SCOLOR_BLINKBACKGROUND));
         }
