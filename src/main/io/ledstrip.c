@@ -35,6 +35,7 @@
 #include "common/color.h"
 #include "common/maths.h"
 #include "common/printf.h"
+#include "common/strtol.h"
 #include "common/typeconversion.h"
 #include "common/utils.h"
 
@@ -128,6 +129,7 @@ void pgResetFn_ledStripConfig(ledStripConfig_t *ledStripConfig)
     ledStripConfig->ledstrip_beacon_percent = 50;       // 50% duty cycle
     ledStripConfig->ledstrip_beacon_armed_only = false; // blink always
     ledStripConfig->ledstrip_visual_beeper_color = VISUAL_BEEPER_COLOR;
+    ledStripConfig->ledstrip_blink_period_ms = 100;
 #ifndef UNIT_TEST
     ledStripConfig->ioTag = timerioTagGetByUsage(TIM_USE_LED, 0);
 #endif
@@ -299,9 +301,10 @@ bool parseLedStripConfig(int ledIndex, const char *config)
         DIRECTIONS,
         FUNCTIONS,
         RING_COLORS,
+        BLINK_PATTERN,
         PARSE_STATE_COUNT
     };
-    static const char chunkSeparators[PARSE_STATE_COUNT] = {',', ':', ':', ':', '\0'};
+    static const char chunkSeparators[PARSE_STATE_COUNT] = {',', ':', ':', ':', ':', '\0'};
 
     ledConfig_t *ledConfig = &ledStripStatusModeConfigMutable()->ledConfigs[ledIndex];
     memset(ledConfig, 0, sizeof(ledConfig_t));
@@ -310,6 +313,7 @@ bool parseLedStripConfig(int ledIndex, const char *config)
     int baseFunction = 0;
     int overlay_flags = 0;
     int direction_flags = 0;
+    uint64_t blinkPattern = 0;
 
     for (enum parseState_e parseState = 0; parseState < PARSE_STATE_COUNT; parseState++) {
         char chunk[CHUNK_BUFFER_SIZE];
@@ -364,11 +368,15 @@ bool parseLedStripConfig(int ledIndex, const char *config)
                 if (color >= LED_CONFIGURABLE_COLOR_COUNT)
                     color = 0;
                 break;
+            case BLINK_PATTERN:
+                blinkPattern = atoui(chunk);
+                break;
+
             case PARSE_STATE_COUNT:; // prevent warning
         }
     }
 
-    *ledConfig = DEFINE_LED(x, y, color, direction_flags, baseFunction, overlay_flags, 0);
+    *ledConfig = DEFINE_LED(x, y, color, direction_flags, baseFunction, overlay_flags, 0, blinkPattern);
 
     reevaluateLedConfig();
 
@@ -401,7 +409,7 @@ void generateLedConfig(ledConfig_t *ledConfig, char *ledConfigBuffer, size_t buf
     *fptr = 0;
 
     // TODO - check buffer length
-    tfp_sprintf(ledConfigBuffer, "%u,%u:%s:%s:%u", ledGetX(ledConfig), ledGetY(ledConfig), directions, baseFunctionOverlays, ledGetColor(ledConfig));
+    tfp_sprintf(ledConfigBuffer, "%u,%u:%s:%s:%u:%u", ledGetX(ledConfig), ledGetY(ledConfig), directions, baseFunctionOverlays, ledGetColor(ledConfig), ledGetBlinkPattern(ledConfig));
 }
 
 typedef enum {
@@ -938,25 +946,24 @@ static void applyLarsonScannerLayer(bool updateNow, timeUs_t *timer)
 // blink twice, then wait ; either always or just when landing
 static void applyLedBlinkLayer(bool updateNow, timeUs_t *timer)
 {
-    const uint16_t blinkPattern = 0x8005; // 0b1000000000000101;
-    static uint16_t blinkMask;
+    const int patternBits = 15;
+    static int currentPatternBit = patternBits;
 
     if (updateNow) {
-        blinkMask = blinkMask >> 1;
-        if (blinkMask <= 1)
-            blinkMask = blinkPattern;
+        if (--currentPatternBit == -1)
+            currentPatternBit = patternBits;
 
-        *timer += HZ_TO_US(10);
+         *timer += ledStripConfig()->ledstrip_blink_period_ms * 1000;
     }
 
-    bool ledOn = (blinkMask & 1);  // b_b_____...
-    if (!ledOn) {
-        for (int i = 0; i < ledCounts.count; ++i) {
-            const ledConfig_t *ledConfig = &ledStripStatusModeConfig()->ledConfigs[i];
+    uint16_t patternMask = 1 << currentPatternBit; 
 
-            if (ledGetOverlayBit(ledConfig, LED_OVERLAY_BLINK)) {
-                setLedHsv(i, getSC(LED_SCOLOR_BLINKBACKGROUND));
-            }
+    for (int i = 0; i < ledCounts.count; ++i) {
+        const ledConfig_t *ledConfig = &ledStripStatusModeConfig()->ledConfigs[i];
+        bool ledOn = ledGetBlinkPattern(ledConfig) & patternMask;
+
+        if (!ledOn && ledGetOverlayBit(ledConfig, LED_OVERLAY_BLINK)) {
+            setLedHsv(i, getSC(LED_SCOLOR_BLINKBACKGROUND));
         }
     }
 }
