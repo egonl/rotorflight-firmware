@@ -130,6 +130,7 @@ void pgResetFn_ledStripConfig(ledStripConfig_t *ledStripConfig)
     ledStripConfig->ledstrip_beacon_armed_only = false; // blink always
     ledStripConfig->ledstrip_visual_beeper_color = VISUAL_BEEPER_COLOR;
     ledStripConfig->ledstrip_blink_period_ms = 100;
+    ledStripConfig->ledstrip_flicker_rate = 50;
 #ifndef UNIT_TEST
     ledStripConfig->ioTag = timerioTagGetByUsage(TIM_USE_LED, 0);
 #endif
@@ -292,7 +293,7 @@ static const hsvColor_t* getSC(ledSpecialColorIds_e index)
 
 static const char directionCodes[LED_DIRECTION_COUNT] = { 'N', 'E', 'S', 'W', 'U', 'D' };
 static const char baseFunctionCodes[LED_BASEFUNCTION_COUNT]   = { 'C', 'F', 'A', 'L', 'S', 'G', 'R' };
-static const char overlayCodes[LED_OVERLAY_COUNT]   = { 'T', 'O', 'B', 'V', 'I', 'W' };
+static const char overlayCodes[LED_OVERLAY_COUNT]   = { 'T', 'O', 'B', 'V', 'I', 'W', 'K' };
 
 #define CHUNK_BUFFER_SIZE 11
 bool parseLedStripConfig(int ledIndex, const char *config)
@@ -952,6 +953,27 @@ static void applyLarsonScannerLayer(bool updateNow, timeUs_t *timer)
     }
 }
 
+static void applyLedFlickerLayer(bool updateNow, timeUs_t *timer)
+{
+    if (updateNow) {
+        int flickerRate = 100 - ledStripConfig()->ledstrip_flicker_rate;
+        *timer += (20 + randomInt(0, flickerRate)) * 1000 ;
+    }
+
+    for (int i = 0; i < ledCounts.count; ++i) {
+        const ledConfig_t *ledConfig = &ledStripStatusModeConfig()->ledConfigs[i];
+        if (!ledGetOverlayBit(ledConfig, LED_OVERLAY_FLICKER))
+            continue;
+
+        if (rand() % 5 == 0) {
+            hsvColor_t color;
+            getLedHsv(i, &color);
+            color.v = randomInt(1, 256);
+            setLedHsv(i, &color);
+        }
+    }
+}
+
 static void applyLedBlinkLayer(bool updateNow, timeUs_t *timer)
 {
     const int patternBits = 15;
@@ -964,14 +986,16 @@ static void applyLedBlinkLayer(bool updateNow, timeUs_t *timer)
             finishedPattern = true;
         }
 
-         *timer += ledStripConfig()->ledstrip_blink_period_ms * 1000;
+        *timer += ledStripConfig()->ledstrip_blink_period_ms * 1000;
     }
 
     uint16_t patternMask = 1 << currentPatternBit; 
 
     for (int i = 0; i < ledCounts.count; ++i) {
-        const ledConfig_t *ledConfig = &ledStripStatusModeConfig()->ledConfigs[i];
-        
+        const ledConfig_t *ledConfig = &ledStripStatusModeConfig()->ledConfigs[i];        
+        if (!ledGetOverlayBit(ledConfig, LED_OVERLAY_BLINK))
+            continue;
+ 
         int blinkPause = ledGetBlinkPause(ledConfig);
         if (blinkPause > 0 && finishedPattern) {
             if (++ledCounts.blinkPauses[i] > blinkPause) {
@@ -988,6 +1012,7 @@ static void applyLedBlinkLayer(bool updateNow, timeUs_t *timer)
 
 // In reverse order of priority
 typedef enum {
+    timFlicker,
     timBlink,
     timLarson,
     timRing,
@@ -1017,6 +1042,7 @@ STATIC_ASSERT(timTimerCount <= sizeof(disabledTimerMask) * 8, disabledTimerMask_
 typedef void applyLayerFn_timed(bool updateNow, timeUs_t *timer);
 
 static applyLayerFn_timed* layerTable[] = {
+    [timFlicker] = &applyLedFlickerLayer,
     [timBlink] = &applyLedBlinkLayer,
     [timLarson] = &applyLarsonScannerLayer,
     [timBattery] = &applyLedBatteryLayer,
@@ -1046,6 +1072,7 @@ bool isOverlayTypeUsed(ledOverlayId_e overlayType)
 void updateRequiredOverlay(void)
 {
     disabledTimerMask = 0;
+    disabledTimerMask |= !isOverlayTypeUsed(LED_OVERLAY_FLICKER) << timFlicker;
     disabledTimerMask |= !isOverlayTypeUsed(LED_OVERLAY_BLINK) << timBlink;
     disabledTimerMask |= !isOverlayTypeUsed(LED_OVERLAY_LARSON_SCANNER) << timLarson;
     disabledTimerMask |= !isOverlayTypeUsed(LED_OVERLAY_WARNING) << timWarning;

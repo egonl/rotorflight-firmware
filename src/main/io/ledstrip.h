@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <stdlib.h>
+
 #include "common/color.h"
 #include "common/time.h"
 
@@ -33,24 +35,24 @@
 #define LED_MODE_COUNT                  3
 #define LED_DIRECTION_COUNT             6
 #define LED_BASEFUNCTION_COUNT          7
-#define LED_OVERLAY_COUNT               6
+#define LED_OVERLAY_COUNT               7
 #define LED_SPECIAL_COLOR_COUNT        11
 
 #define LED_POS_OFFSET                  0
 #define LED_FUNCTION_OFFSET             8
 #define LED_OVERLAY_OFFSET             12
-#define LED_COLOR_OFFSET               18
-#define LED_DIRECTION_OFFSET           22
-#define LED_PARAMS_OFFSET              28
+#define LED_COLOR_OFFSET               19
+#define LED_DIRECTION_OFFSET           23
+#define LED_PARAMS_OFFSET              29
 #define LED_BLINKPATTERN_OFFSET        32
 #define LED_BLINKPAUSE_OFFSET          48
 
 #define LED_POS_BITCNT                  8
 #define LED_FUNCTION_BITCNT             4
-#define LED_OVERLAY_BITCNT              6
+#define LED_OVERLAY_BITCNT              7
 #define LED_COLOR_BITCNT                4
 #define LED_DIRECTION_BITCNT            6
-#define LED_PARAMS_BITCNT               4
+#define LED_PARAMS_BITCNT               3
 #define LED_BLINKPATTERN_BITCNT        16
 #define LED_BLINKPAUSE_BITCNT           4
 
@@ -147,7 +149,8 @@ typedef enum {
     LED_OVERLAY_BLINK,
     LED_OVERLAY_VTX,
     LED_OVERLAY_INDICATOR,
-    LED_OVERLAY_WARNING
+    LED_OVERLAY_WARNING,
+    LED_OVERLAY_FLICKER
 } ledOverlayId_e;
 
 typedef enum {
@@ -189,6 +192,7 @@ typedef struct ledStripConfig_s {
     uint8_t ledstrip_beacon_armed_only;
     colorId_e ledstrip_visual_beeper_color;
     uint16_t ledstrip_blink_period_ms;
+    uint8_t ledstrip_flicker_rate;
 } ledStripConfig_t;
 
 PG_DECLARE(ledStripConfig_t, ledStripConfig);
@@ -223,6 +227,8 @@ static inline uint8_t ledGetBlinkPause(const ledConfig_t *lcfg)    { return ((*l
 
 static inline bool ledGetOverlayBit(const ledConfig_t *lcfg, int id) { return ((ledGetOverlay(lcfg) >> id) & 1); }
 static inline bool ledGetDirectionBit(const ledConfig_t *lcfg, int id) { return ((ledGetDirection(lcfg) >> id) & 1); }
+
+static inline int randomInt(int min, int max) { return min + rand() % (max - min); }
 
 bool parseColor(int index, const char *colorConfig);
 
