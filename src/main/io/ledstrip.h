@@ -35,21 +35,21 @@
 #define LED_MODE_COUNT                  3
 #define LED_DIRECTION_COUNT             6
 #define LED_BASEFUNCTION_COUNT          7
-#define LED_OVERLAY_COUNT               7
+#define LED_OVERLAY_COUNT               8
 #define LED_SPECIAL_COLOR_COUNT        11
 
 #define LED_POS_OFFSET                  0
 #define LED_FUNCTION_OFFSET             8
 #define LED_OVERLAY_OFFSET             12
-#define LED_COLOR_OFFSET               19
-#define LED_DIRECTION_OFFSET           23
-#define LED_PARAMS_OFFSET              29
-#define LED_BLINKPATTERN_OFFSET        32
-#define LED_BLINKPAUSE_OFFSET          48
+#define LED_COLOR_OFFSET               20
+#define LED_DIRECTION_OFFSET           24
+#define LED_PARAMS_OFFSET              30
+#define LED_BLINKPATTERN_OFFSET        33
+#define LED_BLINKPAUSE_OFFSET          49
 
 #define LED_POS_BITCNT                  8
 #define LED_FUNCTION_BITCNT             4
-#define LED_OVERLAY_BITCNT              7
+#define LED_OVERLAY_BITCNT              8
 #define LED_COLOR_BITCNT                4
 #define LED_DIRECTION_BITCNT            6
 #define LED_PARAMS_BITCNT               3
@@ -150,7 +150,8 @@ typedef enum {
     LED_OVERLAY_VTX,
     LED_OVERLAY_INDICATOR,
     LED_OVERLAY_WARNING,
-    LED_OVERLAY_FLICKER
+    LED_OVERLAY_FLICKER,
+    LED_OVERLAY_DIMMER
 } ledOverlayId_e;
 
 typedef enum {
@@ -158,6 +159,7 @@ typedef enum {
     LED_PROFILE_BEACON,
 #ifdef USE_LED_STRIP_STATUS_MODE
     LED_PROFILE_STATUS,
+    LED_PROFILE_STATUS_DIMMED,
 #endif
     LED_PROFILE_COUNT
 } ledProfile_e;
@@ -193,6 +195,7 @@ typedef struct ledStripConfig_s {
     colorId_e ledstrip_visual_beeper_color;
     uint16_t ledstrip_blink_period_ms;
     uint8_t ledstrip_flicker_rate;
+    uint8_t ledstrip_dimmer_rate;
 } ledStripConfig_t;
 
 PG_DECLARE(ledStripConfig_t, ledStripConfig);

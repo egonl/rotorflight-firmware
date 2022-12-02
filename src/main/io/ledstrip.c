@@ -131,6 +131,7 @@ void pgResetFn_ledStripConfig(ledStripConfig_t *ledStripConfig)
     ledStripConfig->ledstrip_visual_beeper_color = VISUAL_BEEPER_COLOR;
     ledStripConfig->ledstrip_blink_period_ms = 100;
     ledStripConfig->ledstrip_flicker_rate = 50;
+    ledStripConfig->ledstrip_dimmer_rate = 50;
 #ifndef UNIT_TEST
     ledStripConfig->ioTag = timerioTagGetByUsage(TIM_USE_LED, 0);
 #endif
@@ -293,7 +294,7 @@ static const hsvColor_t* getSC(ledSpecialColorIds_e index)
 
 static const char directionCodes[LED_DIRECTION_COUNT] = { 'N', 'E', 'S', 'W', 'U', 'D' };
 static const char baseFunctionCodes[LED_BASEFUNCTION_COUNT]   = { 'C', 'F', 'A', 'L', 'S', 'G', 'R' };
-static const char overlayCodes[LED_OVERLAY_COUNT]   = { 'T', 'O', 'B', 'V', 'I', 'W', 'K' };
+static const char overlayCodes[LED_OVERLAY_COUNT]   = { 'T', 'O', 'B', 'V', 'I', 'W', 'K', 'D' };
 
 #define CHUNK_BUFFER_SIZE 11
 bool parseLedStripConfig(int ledIndex, const char *config)
@@ -974,6 +975,68 @@ static void applyLedFlickerLayer(bool updateNow, timeUs_t *timer)
     }
 }
 
+typedef struct dimmerParameters_s {
+    ledProfile_e previousLedProfile;
+    int16_t currentBrightness;
+    int8_t direction;
+} dimmerParameters_t;
+
+static void applyLedDimmerLayer(bool updateNow, timeUs_t *timer)
+{
+    static dimmerParameters_t dimmerParameters = { LED_PROFILE_STATUS, 0, 1 };
+    const int16_t maxBrightness = 500;
+
+    if (updateNow) {
+        *timer += HZ_TO_US(60);
+    }
+
+    if (dimmerParameters.previousLedProfile != ledStripConfig()->ledstrip_profile) {
+        if (ledStripConfig()->ledstrip_profile == LED_PROFILE_STATUS_DIMMED) {
+            // Start dimming
+            dimmerParameters.direction = -1;
+            dimmerParameters.currentBrightness = maxBrightness;
+        } else {
+            // Start brightening
+            dimmerParameters.direction = 1;
+            dimmerParameters.currentBrightness = 0;
+        }
+        dimmerParameters.previousLedProfile = ledStripConfig()->ledstrip_profile;
+    }
+
+    if (dimmerParameters.direction != 0) {
+        int8_t step = ledStripConfig()->ledstrip_dimmer_rate;
+
+        if (dimmerParameters.direction == -1) {
+            if (ledStripConfig()->ledstrip_dimmer_rate <= 20 && dimmerParameters.currentBrightness < 50) {
+                // Slow down dimming even more when dimmer rate is low.
+                step = -MIN(1 + dimmerParameters.currentBrightness/5, step);
+            } else {
+                step = -step;
+            }
+        }
+
+        dimmerParameters.currentBrightness += step; 
+
+        if (dimmerParameters.currentBrightness > maxBrightness) {
+            dimmerParameters.currentBrightness = maxBrightness;
+            dimmerParameters.direction = 0;
+        } else if (dimmerParameters.currentBrightness < 0) {
+            dimmerParameters.currentBrightness = 0;
+            dimmerParameters.direction = 0;
+        }
+    }
+
+    for (int i = 0; i < ledCounts.count; ++i) {
+        const ledConfig_t *ledConfig = &ledStripStatusModeConfig()->ledConfigs[i];
+        if (!ledGetOverlayBit(ledConfig, LED_OVERLAY_DIMMER))
+            continue;
+
+        hsvColor_t color = ledStripStatusModeConfig()->colors[ledGetColor(ledConfig)];
+        color.v = color.v * dimmerParameters.currentBrightness / maxBrightness;
+        setLedHsv(i, &color);
+    }
+}
+
 static void applyLedBlinkLayer(bool updateNow, timeUs_t *timer)
 {
     const int patternBits = 15;
@@ -1013,6 +1076,7 @@ static void applyLedBlinkLayer(bool updateNow, timeUs_t *timer)
 // In reverse order of priority
 typedef enum {
     timFlicker,
+    timDimmer,
     timBlink,
     timLarson,
     timRing,
@@ -1043,6 +1107,7 @@ typedef void applyLayerFn_timed(bool updateNow, timeUs_t *timer);
 
 static applyLayerFn_timed* layerTable[] = {
     [timFlicker] = &applyLedFlickerLayer,
+    [timDimmer] = &applyLedDimmerLayer,
     [timBlink] = &applyLedBlinkLayer,
     [timLarson] = &applyLarsonScannerLayer,
     [timBattery] = &applyLedBatteryLayer,
@@ -1073,6 +1138,7 @@ void updateRequiredOverlay(void)
 {
     disabledTimerMask = 0;
     disabledTimerMask |= !isOverlayTypeUsed(LED_OVERLAY_FLICKER) << timFlicker;
+    disabledTimerMask |= !isOverlayTypeUsed(LED_OVERLAY_DIMMER) << timDimmer;
     disabledTimerMask |= !isOverlayTypeUsed(LED_OVERLAY_BLINK) << timBlink;
     disabledTimerMask |= !isOverlayTypeUsed(LED_OVERLAY_LARSON_SCANNER) << timLarson;
     disabledTimerMask |= !isOverlayTypeUsed(LED_OVERLAY_WARNING) << timWarning;
@@ -1298,7 +1364,8 @@ void ledStripUpdate(timeUs_t currentTimeUs)
     if (ledStripEnabled) {
         switch (ledStripConfig()->ledstrip_profile) {
 #ifdef USE_LED_STRIP_STATUS_MODE
-            case LED_PROFILE_STATUS: {
+            case LED_PROFILE_STATUS:
+            case LED_PROFILE_STATUS_DIMMED: {
                 applyStatusProfile(currentTimeUs);
                 break;
             }
