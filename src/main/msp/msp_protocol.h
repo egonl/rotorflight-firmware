@@ -340,6 +340,8 @@
 #define MSP_SET_GOVERNOR         143    //in message          Sets the governor configuration
 #define MSP_RPM_FILTER           144    //out message         Gets RPM filter configuration
 #define MSP_SET_RPM_FILTER       145    //in message          Sets RPM filter configuration
+#define MSP_LED_STRIP_SETTINGS     146  //out message         Gets the global led strip settings 
+#define MSP_SET_LED_STRIP_SETTINGS 147  //in message          Sets the global led strip settings
 
 #define MSP_MIXER_INPUTS         170    //out message         Gets the generic mixer inputs
 #define MSP_SET_MIXER_INPUT      171    //in message          Sets one generic mixer input
