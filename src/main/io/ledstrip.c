@@ -310,9 +310,10 @@ bool parseLedStripConfig(int ledIndex, const char *config)
         RING_COLORS,
         BLINK_PATTERN,
         BLINK_PAUSE,
+        ALT_COLOR,
         PARSE_STATE_COUNT
     };
-    static const char chunkSeparators[PARSE_STATE_COUNT] = {',', ':', ':', ':', ':', ':', '\0'};
+    static const char chunkSeparators[PARSE_STATE_COUNT] = {',', ':', ':', ':', ':', ':', ':', '\0'};
 
     ledConfig_t *ledConfig = &ledStripStatusModeConfigMutable()->ledConfigs[ledIndex];
     memset(ledConfig, 0, sizeof(ledConfig_t));
@@ -321,7 +322,7 @@ bool parseLedStripConfig(int ledIndex, const char *config)
     int baseFunction = 0;
     int overlay_flags = 0;
     int direction_flags = 0;
-    uint64_t blinkPattern = 0, blinkPause = 0;
+    uint64_t blinkPattern = 0, blinkPause = 0, altColor = 0;
 
     for (enum parseState_e parseState = 0; parseState < PARSE_STATE_COUNT; parseState++) {
         char chunk[CHUNK_BUFFER_SIZE];
@@ -382,12 +383,17 @@ bool parseLedStripConfig(int ledIndex, const char *config)
             case BLINK_PAUSE:
                 blinkPause = atoui(chunk);
                 break;
+            case ALT_COLOR:
+                altColor = atoui(chunk);
+                if (altColor >= LED_CONFIGURABLE_COLOR_COUNT)
+                    altColor = 0;
+                break;
 
             case PARSE_STATE_COUNT:; // prevent warning
         }
     }
 
-    *ledConfig = DEFINE_LED(x, y, color, direction_flags, baseFunction, overlay_flags, 0, blinkPattern, blinkPause);
+    *ledConfig = DEFINE_LED(x, y, color, direction_flags, baseFunction, overlay_flags, 0, blinkPattern, blinkPause, altColor);
 
     reevaluateLedConfig();
 
@@ -420,7 +426,7 @@ void generateLedConfig(ledConfig_t *ledConfig, char *ledConfigBuffer, size_t buf
     *fptr = 0;
 
     // TODO - check buffer length
-    tfp_sprintf(ledConfigBuffer, "%u,%u:%s:%s:%u:%u:%u", ledGetX(ledConfig), ledGetY(ledConfig), directions, baseFunctionOverlays, ledGetColor(ledConfig), ledGetBlinkPattern(ledConfig), ledGetBlinkPause(ledConfig));
+    tfp_sprintf(ledConfigBuffer, "%u,%u:%s:%s:%u:%u:%u:%u", ledGetX(ledConfig), ledGetY(ledConfig), directions, baseFunctionOverlays, ledGetColor(ledConfig), ledGetBlinkPattern(ledConfig), ledGetBlinkPause(ledConfig), ledGetAltColor(ledConfig));
 }
 
 typedef enum {
@@ -487,7 +493,10 @@ static void applyLedFixedLayers(void)
 
         switch (fn) {
         case LED_FUNCTION_COLOR:
-            color = ledStripStatusModeConfig()->colors[ledGetColor(ledConfig)];
+            if (ledStripConfig()->ledstrip_profile == LED_PROFILE_STATUS_DIMMED)
+                color = ledStripStatusModeConfig()->colors[ledGetAltColor(ledConfig)];
+            else
+                color = ledStripStatusModeConfig()->colors[ledGetColor(ledConfig)];
 
             hsvColor_t nextColor = ledStripStatusModeConfig()->colors[(ledGetColor(ledConfig) + 1 + LED_CONFIGURABLE_COLOR_COUNT) % LED_CONFIGURABLE_COLOR_COUNT];
             hsvColor_t previousColor = ledStripStatusModeConfig()->colors[(ledGetColor(ledConfig) - 1 + LED_CONFIGURABLE_COLOR_COUNT) % LED_CONFIGURABLE_COLOR_COUNT];
@@ -1031,9 +1040,15 @@ static void applyLedDimmerLayer(bool updateNow, timeUs_t *timer)
         if (!ledGetOverlayBit(ledConfig, LED_OVERLAY_DIMMER))
             continue;
 
-        hsvColor_t color = ledStripStatusModeConfig()->colors[ledGetColor(ledConfig)];
-        color.v = color.v * dimmerParameters.currentBrightness / maxBrightness;
-        setLedHsv(i, &color);
+        hsvColor_t color, altColor;
+        color = ledStripStatusModeConfig()->colors[ledGetColor(ledConfig)]; 
+        altColor = ledStripStatusModeConfig()->colors[ledGetAltColor(ledConfig)];
+
+        hsvColor_t currentColor;
+        currentColor.h = scaleRange(dimmerParameters.currentBrightness, 0, maxBrightness, altColor.h, color.h);
+        currentColor.s = scaleRange(dimmerParameters.currentBrightness, 0, maxBrightness, altColor.s, color.s);
+        currentColor.v = scaleRange(dimmerParameters.currentBrightness, 0, maxBrightness, altColor.v, color.v);
+        setLedHsv(i, &currentColor);
     }
 }
 
