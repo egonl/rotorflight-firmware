@@ -200,6 +200,7 @@ typedef struct ledStripConfig_s {
     uint16_t ledstrip_blink_period_ms;
     uint8_t ledstrip_flicker_rate;
     uint8_t ledstrip_dimmer_rate;
+    uint32_t ledstrip_inverted_format;
 } ledStripConfig_t;
 
 PG_DECLARE(ledStripConfig_t, ledStripConfig);

@@ -132,6 +132,7 @@ void pgResetFn_ledStripConfig(ledStripConfig_t *ledStripConfig)
     ledStripConfig->ledstrip_blink_period_ms = 100;
     ledStripConfig->ledstrip_flicker_rate = 50;
     ledStripConfig->ledstrip_dimmer_rate = 50;
+    ledStripConfig->ledstrip_inverted_format = 0;
 #ifndef UNIT_TEST
     ledStripConfig->ioTag = timerioTagGetByUsage(TIM_USE_LED, 0);
 #endif
@@ -284,6 +285,7 @@ void reevaluateLedConfig(void)
     updateLedRingCounts();
     updateRequiredOverlay();
     updateBlinkPauses();
+    setLedsWithInvertedLedFormat(ledStripConfig()->ledstrip_inverted_format);
 }
 
 // get specialColor by index
@@ -1024,7 +1026,7 @@ static void applyLedDimmerLayer(bool updateNow, timeUs_t *timer)
             }
         }
 
-        dimmerParameters.currentBrightness += step; 
+        dimmerParameters.currentBrightness += step;
 
         if (dimmerParameters.currentBrightness > maxBrightness) {
             dimmerParameters.currentBrightness = maxBrightness;
@@ -1041,7 +1043,7 @@ static void applyLedDimmerLayer(bool updateNow, timeUs_t *timer)
             continue;
 
         hsvColor_t color, altColor;
-        color = ledStripStatusModeConfig()->colors[ledGetColor(ledConfig)]; 
+        color = ledStripStatusModeConfig()->colors[ledGetColor(ledConfig)];
         altColor = ledStripStatusModeConfig()->colors[ledGetAltColor(ledConfig)];
 
         hsvColor_t currentColor;
@@ -1067,13 +1069,13 @@ static void applyLedBlinkLayer(bool updateNow, timeUs_t *timer)
         *timer += ledStripConfig()->ledstrip_blink_period_ms * 1000;
     }
 
-    uint16_t patternMask = 1 << currentPatternBit; 
+    uint16_t patternMask = 1 << currentPatternBit;
 
     for (int i = 0; i < ledCounts.count; ++i) {
-        const ledConfig_t *ledConfig = &ledStripStatusModeConfig()->ledConfigs[i];        
+        const ledConfig_t *ledConfig = &ledStripStatusModeConfig()->ledConfigs[i];
         if (!ledGetOverlayBit(ledConfig, LED_OVERLAY_BLINK))
             continue;
- 
+
         int blinkPause = ledGetBlinkPause(ledConfig);
         if (blinkPause > 0 && finishedPattern) {
             if (++ledCounts.blinkPauses[i] > blinkPause) {
