@@ -495,10 +495,7 @@ static void applyLedFixedLayers(void)
 
         switch (fn) {
         case LED_FUNCTION_COLOR:
-            if (ledStripConfig()->ledstrip_profile == LED_PROFILE_STATUS_DIMMED)
-                color = ledStripStatusModeConfig()->colors[ledGetAltColor(ledConfig)];
-            else
-                color = ledStripStatusModeConfig()->colors[ledGetColor(ledConfig)];
+            color = ledStripStatusModeConfig()->colors[ledGetColor(ledConfig)];
 
             hsvColor_t nextColor = ledStripStatusModeConfig()->colors[(ledGetColor(ledConfig) + 1 + LED_CONFIGURABLE_COLOR_COUNT) % LED_CONFIGURABLE_COLOR_COUNT];
             hsvColor_t previousColor = ledStripStatusModeConfig()->colors[(ledGetColor(ledConfig) - 1 + LED_CONFIGURABLE_COLOR_COUNT) % LED_CONFIGURABLE_COLOR_COUNT];
@@ -1084,8 +1081,9 @@ static void applyLedBlinkLayer(bool updateNow, timeUs_t *timer)
         }
 
         bool ledOn = ledCounts.blinkPauses[i] > 0 ? false : ledGetBlinkPattern(ledConfig) & patternMask;
-        if (!ledOn && ledGetOverlayBit(ledConfig, LED_OVERLAY_BLINK)) {
-            setLedHsv(i, getSC(LED_SCOLOR_BLINKBACKGROUND));
+        if (!ledOn) {
+            hsvColor_t altColor = ledStripStatusModeConfig()->colors[ledGetAltColor(ledConfig)];
+            setLedHsv(i, &altColor);
         }
     }
 }
