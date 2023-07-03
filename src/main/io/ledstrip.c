@@ -324,13 +324,10 @@ bool parseLedStripConfig(int ledIndex, const char *config)
                 chunk[chunkIndex++] = *config++;
             }
             chunk[chunkIndex++] = 0; // zero-terminate chunk
-            if (*config == chunkSeparator) {
-                config++;   // skip separator
-            } else {
-                if (parseState < BLINK_PATTERN && (parseState != RING_COLORS && !*config))
-                    return false;
-                strcpy(chunk, "0"); // optional parameter, defaults to 0
+            if (*config != chunkSeparator) {
+                return false;
             }
+            config++;   // skip separator
         }
         switch (parseState) {
             case X_COORDINATE:
