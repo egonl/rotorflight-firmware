@@ -1593,9 +1593,9 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         for (int i = 0; i < LED_MAX_STRIP_LENGTH; i++) {
 #ifdef USE_LED_STRIP_STATUS_MODE
             const ledConfig_t *ledConfig = &ledStripStatusModeConfig()->ledConfigs[i];
-            sbufWriteU64(dst, *ledConfig);
+            sbufWriteU32(dst, *ledConfig);
 #else
-            sbufWriteU64(dst, 0);
+            sbufWriteU32(dst, 0);
 #endif
         }
 
@@ -1630,24 +1630,6 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, LED_AUX_CHANNEL);
         sbufWriteU8(dst, 0);
         sbufWriteU8(dst, ledStripStatusModeConfig()->ledstrip_aux_channel);
-        break;
-#endif
-
-#ifdef USE_LED_STRIP
-    case MSP_LED_STRIP_SETTINGS:
-        sbufWriteU8(dst, ledStripConfigMutable()->ledstrip_beacon_armed_only);
-        sbufWriteU8(dst, ledStripConfigMutable()->ledstrip_beacon_color);
-        sbufWriteU8(dst, ledStripConfigMutable()->ledstrip_beacon_percent);
-        sbufWriteU16(dst, ledStripConfigMutable()->ledstrip_beacon_period_ms);
-        sbufWriteU16(dst, ledStripConfigMutable()->ledstrip_blink_period_ms);
-        sbufWriteU8(dst, ledStripConfigMutable()->ledstrip_brightness);
-        sbufWriteU8(dst, ledStripConfigMutable()->ledstrip_dimmer_rate);
-        sbufWriteU8(dst, ledStripConfigMutable()->ledstrip_flicker_rate);
-        sbufWriteU8(dst, ledStripConfigMutable()->ledstrip_grb_rgb);
-        sbufWriteU8(dst, ledStripConfigMutable()->ledstrip_profile);
-        sbufWriteU8(dst, ledStripConfigMutable()->ledstrip_race_color);
-        sbufWriteU8(dst, ledStripConfigMutable()->ledstrip_visual_beeper);
-        sbufWriteU8(dst, ledStripConfigMutable()->ledstrip_visual_beeper_color);
         break;
 #endif
 
@@ -3038,15 +3020,15 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
     case MSP_SET_LED_STRIP_CONFIG:
         {
             i = sbufReadU8(src);
-            if (i >= LED_MAX_STRIP_LENGTH || dataSize != (1 + 8)) {
+            if (i >= LED_MAX_STRIP_LENGTH || dataSize != (1 + 4)) {
                 return MSP_RESULT_ERROR;
             }
 #ifdef USE_LED_STRIP_STATUS_MODE
             ledConfig_t *ledConfig = &ledStripStatusModeConfigMutable()->ledConfigs[i];
-            *ledConfig = sbufReadU64(src);
+            *ledConfig = sbufReadU32(src);
             reevaluateLedConfig();
 #else
-            sbufReadU64(src);
+            sbufReadU32(src);
 #endif
             // API 1.41 - selected ledstrip_profile
             if (sbufBytesRemaining(src) >= 1) {
@@ -3067,24 +3049,6 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
                 return MSP_RESULT_ERROR;
             }
         }
-        break;
-#endif
-
-#ifdef USE_LED_STRIP
-    case MSP_SET_LED_STRIP_SETTINGS:
-        ledStripConfigMutable()->ledstrip_beacon_armed_only = sbufReadU8(src);
-        ledStripConfigMutable()->ledstrip_beacon_color = sbufReadU8(src);
-        ledStripConfigMutable()->ledstrip_beacon_percent = sbufReadU8(src);
-        ledStripConfigMutable()->ledstrip_beacon_period_ms = sbufReadU16(src);
-        ledStripConfigMutable()->ledstrip_blink_period_ms = sbufReadU16(src);
-        ledStripConfigMutable()->ledstrip_brightness = sbufReadU8(src);
-        ledStripConfigMutable()->ledstrip_dimmer_rate = sbufReadU8(src);
-        ledStripConfigMutable()->ledstrip_flicker_rate = sbufReadU8(src);
-        ledStripConfigMutable()->ledstrip_grb_rgb = sbufReadU8(src);
-        ledStripConfigMutable()->ledstrip_profile = sbufReadU8(src);
-        ledStripConfigMutable()->ledstrip_race_color = sbufReadU8(src);
-        ledStripConfigMutable()->ledstrip_visual_beeper = sbufReadU8(src);
-        ledStripConfigMutable()->ledstrip_visual_beeper_color = sbufReadU8(src);
         break;
 #endif
 

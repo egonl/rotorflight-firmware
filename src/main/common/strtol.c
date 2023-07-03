@@ -131,8 +131,3 @@ int atoi(const char *str)
 {
     return strtol(str, NULL, 10);
 }
-
-unsigned int atoui(const char *str)
-{
-    return strtoul(str, NULL, 10);
-}
