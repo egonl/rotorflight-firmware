@@ -513,8 +513,9 @@ static float govCalcTTA(void)
     float ttaAdd = 0;
 
     if (gov.useTorqueAssist) {
-        float YAW = mixerGetInput(MIXER_IN_STABILIZED_YAW);
-        float TTA = filterApply(&gov.ttaFilter, YAW) * getSpoolUpRatio() * gov.ttaGain;
+        // Positive when the tail cannot give the requested yaw torque on its own
+        float demand = getTailTorqueAssistDemand();
+        float TTA = filterApply(&gov.ttaFilter, demand) * getSpoolUpRatio() * gov.ttaGain;
         float headroom = 0;
 
         if (gov.govMode == GOV_MODE_DIRECT)
@@ -524,7 +525,7 @@ static float govCalcTTA(void)
 
         ttaAdd = constrainf(TTA, 0, headroom);
 
-        DEBUG(TTA, 0, YAW * 1000);
+        DEBUG(TTA, 0, demand * 1000);
         DEBUG(TTA, 1, TTA * 1000);
         DEBUG(TTA, 2, headroom * 1000);
         DEBUG(TTA, 3, ttaAdd * 1000);
@@ -1525,7 +1526,7 @@ static void INIT_CODE govInitTTA(const pidProfile_t *pidProfile)
     if ((gov.govMode == GOV_MODE_DIRECT || gov.govMode == GOV_MODE_ELECTRIC) &&
         pidProfile->governor.tta_gain > 0 && pidProfile->governor.tta_limit > 0)
     {
-        gov.ttaGain = mixerRotationSign() * pidProfile->governor.tta_gain / -125.0f;
+        gov.ttaGain = pidProfile->governor.tta_gain / 125.0f;
         gov.ttaLimit = pidProfile->governor.tta_limit / 100.0f;
         gov.useTorqueAssist = true;
 

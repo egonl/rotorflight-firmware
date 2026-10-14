@@ -42,6 +42,23 @@ Cyclic I-term decay can be scaled with setpoint via `error_decay_gain_cyclic`
 Bus servos with a `speed` set previously moved much slower than configured
 (about 20x at 50Hz SBUS). They now move at the configured speed (#515).
 
+Motorised tail: TTA now engages where the tail reaches `tail_motor_idle`,
+not only below `tail_center_trim`. With idle above trim there was a band
+where the tail sat at idle and TTA did not act yet. Setups with trim at or
+above idle (including the defaults) are unchanged. Debug mode `TTA` value 0
+now shows this demand instead of the raw yaw.
+
+New `tail_tta_threshold` (‰ tail throttle, default 0 = off) starts TTA
+above the idle, while the tail keeps control down to `tail_motor_idle`.
+Between the two, the tail and the main rotor torque act together. A value
+about 6% below the hover tail throttle is a starting point. CLI only for now.
+
+New `tail_motor_lead` (ms, default 0 = off) drops the tail throttle early
+when it falls, to offset the tail motor spinning down slower than it spins
+up. This reduces overshoot on tail-direction stops. CLI only for now; not
+yet in MSP. `PG_GENERIC_MIXER_CONFIG`
+is bumped to v1, so mixer settings reset to defaults on upgrade.
+
 ## MSP Changes
 
 - API version 12.10 (#484)

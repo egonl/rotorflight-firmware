@@ -64,7 +64,11 @@ typedef struct {
 
     float           tailCenterTrim;
     float           tailMotorIdle;
+    float           tailMotorLead;
+    float           tailTTAThreshold;
     int8_t          tailMotorDirection;
+
+    difFilter_t     tailLeadFilter;
 
     float           swashTrim[3];
 
@@ -135,6 +139,23 @@ float mixerGetOutput(uint8_t index)
 float getCyclicDeflection(void)
 {
     return mixer.cyclicTotal;
+}
+
+float getTailTorqueAssistDemand(void)
+{
+    // Must be called before mixerUpdateMotorizedTail() replaces the yaw input with tail throttle
+
+    // Yaw input value - positive is against torque
+    const float yaw = mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign();
+
+    // Motorised tail: how far the tail throttle is asked to go below the TTA threshold.
+    // The threshold is never below the idle, where the tail cannot follow any more.
+    // Above the idle the tail stays in control, and TTA adds main rotor torque alongside it.
+    if (mixerIsTailMode(TAIL_MODE_MOTORIZED)) {
+        return mixer.tailTTAThreshold - (yaw + mixer.tailCenterTrim);
+    }
+
+    return -yaw;
 }
 
 bool mixerSaturated(uint8_t index)
@@ -380,6 +401,10 @@ static float mixerCollectiveScale(float SC, float SR, float SP)
     return SC * scale;
 }
 
+// Tail lead differentiator bandwidth [Hz] and deadband [throttle/s]
+#define TAIL_LEAD_CUTOFF        10.0f
+#define TAIL_LEAD_DEADBAND      2.0f
+
 static void mixerUpdateMotorizedTail(void)
 {
     // Motorized tail control
@@ -389,6 +414,12 @@ static void mixerUpdateMotorizedTail(void)
 
         // Add center trim
         float throttle = yaw + mixer.tailCenterTrim;
+
+        // Lead on falling throttle: the tail spins down slower than it spins up,
+        // so drop the command early. Slow changes inside the deadband are ignored.
+        const float rate = difFilterApply(&mixer.tailLeadFilter, throttle);
+        if (rate < -TAIL_LEAD_DEADBAND)
+            throttle += (rate + TAIL_LEAD_DEADBAND) * mixer.tailMotorLead;
 
         // Apply minimum throttle
         throttle = fmaxf(throttle, mixer.tailMotorIdle);
@@ -658,6 +689,15 @@ void INIT_CODE mixerInitConfig(void)
 
     mixer.tailMotorIdle = mixerConfig()->tail_motor_idle / 1000.0f;
     mixer.tailCenterTrim = mixerConfig()->tail_center_trim / 1000.0f;
+    mixer.tailMotorLead = mixerConfig()->tail_motor_lead / 1000.0f;
+    mixer.tailTTAThreshold = fmaxf(fmaxf(mixer.tailMotorIdle, mixer.tailCenterTrim),
+                                   mixerConfig()->tail_tta_threshold / 1000.0f);
+}
+
+void INIT_CODE mixerInitFilters(void)
+{
+    // Needs the PID loop rate, so runs after pidInit()
+    difFilterInit(&mixer.tailLeadFilter, TAIL_LEAD_CUTOFF, pidGetPidFrequency());
 }
 
 static void INIT_CODE setMapping(uint8_t in, uint8_t out)

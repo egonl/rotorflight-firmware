@@ -24,13 +24,15 @@
 #include "config/config_reset.h"
 
 
-PG_REGISTER_WITH_RESET_TEMPLATE(mixerConfig_t, mixerConfig, PG_GENERIC_MIXER_CONFIG, 0);
+PG_REGISTER_WITH_RESET_TEMPLATE(mixerConfig_t, mixerConfig, PG_GENERIC_MIXER_CONFIG, 1);
 
 PG_RESET_TEMPLATE(mixerConfig_t, mixerConfig,
     .main_rotor_dir = DIR_CW,
     .tail_rotor_mode = TAIL_MODE_VARIABLE,
     .tail_motor_idle = 0,
     .tail_center_trim = 0,
+    .tail_motor_lead = 0,
+    .tail_tta_threshold = 0,
     .swash_type = SWASH_TYPE_120,
     .swash_ring = 100,
     .swash_phase = 0,
