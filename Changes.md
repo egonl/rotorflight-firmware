@@ -51,12 +51,11 @@ now shows this demand instead of the raw yaw.
 New `tail_tta_threshold` (‰ tail throttle, default 0 = off) starts TTA
 above the idle, while the tail keeps control down to `tail_motor_idle`.
 Between the two, the tail and the main rotor torque act together. A value
-about 6% below the hover tail throttle is a starting point. CLI only for now.
+about 6% below the hover tail throttle is a starting point.
 
 New `tail_motor_lead` (ms, default 0 = off) drops the tail throttle early
 when it falls, to offset the tail motor spinning down slower than it spins
-up. This reduces overshoot on tail-direction stops. CLI only for now; not
-yet in MSP. `PG_GENERIC_MIXER_CONFIG`
+up. This reduces overshoot on tail-direction stops. `PG_GENERIC_MIXER_CONFIG`
 is bumped to v1, so mixer settings reset to defaults on upgrade.
 
 ## MSP Changes
@@ -66,6 +65,10 @@ is bumped to v1, so mixer settings reset to defaults on upgrade.
 ### MSP_PID_PROFILE / MSP_SET_PID_PROFILE
 
 - added `error_decay_gain_cyclic` (#457)
+
+### MSP_MIXER_CONFIG / MSP_SET_MIXER_CONFIG
+
+- added `tail_motor_lead` (U8, ms) and `tail_tta_threshold` (U8, ‰) at the end; optional on set
 
 ### MSP_MOTOR_CONFIG / MSP_ESC_SENSOR_CONFIG
 

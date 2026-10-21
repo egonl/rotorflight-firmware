@@ -1777,6 +1777,8 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, mixerConfig()->swash_geo_correction);
         sbufWriteS8(dst, mixerConfig()->collective_tilt_correction_pos);
         sbufWriteS8(dst, mixerConfig()->collective_tilt_correction_neg);
+        sbufWriteU8(dst, mixerConfig()->tail_motor_lead);
+        sbufWriteU8(dst, mixerConfig()->tail_tta_threshold);
         break;
 
     case MSP_MIXER_INPUTS:
@@ -3747,6 +3749,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         if (sbufBytesRemaining(src) >= 2) {
             mixerConfigMutable()->collective_tilt_correction_pos = sbufReadS8(src);
             mixerConfigMutable()->collective_tilt_correction_neg = sbufReadS8(src);
+        }
+        if (sbufBytesRemaining(src) >= 2) {
+            mixerConfigMutable()->tail_motor_lead = sbufReadU8(src);
+            mixerConfigMutable()->tail_tta_threshold = sbufReadU8(src);
         }
         mixerInitConfig();
         break;
