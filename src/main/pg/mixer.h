@@ -95,7 +95,6 @@ typedef struct
     uint8_t   tail_motor_idle;      // Idle throttle for tail motor
     int16_t   tail_center_trim;     // Tail center position offset
     uint8_t   tail_motor_lead;      // Tail motor lead time on falling throttle [ms]
-    uint8_t   tail_tta_threshold;   // Tail throttle below which TTA starts
 
     uint8_t   swash_type;           // Swashplate type
     uint8_t   swash_ring;           // Swash ring size

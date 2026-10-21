@@ -71,7 +71,7 @@ float mixerGetInputHistory(uint8_t index, uint16_t delay);
 float mixerGetOutput(uint8_t index);
 
 float getCyclicDeflection(void);
-float getTailTorqueAssistDemand(void);
+float getTailTorqueAssistDemand(float threshold);
 
 bool mixerSaturated(uint8_t index);
 bool mixerTakeStabilizedSaturation(void);

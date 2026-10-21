@@ -59,6 +59,7 @@ typedef struct {
     uint8_t     f_limit;
     uint8_t     tta_gain;
     uint8_t     tta_limit;
+    uint8_t     tta_threshold;      // Motorised tail: tail throttle [permille] below which TTA starts
     uint8_t     yaw_weight;
     uint8_t     cyclic_weight;
     uint8_t     collective_weight;

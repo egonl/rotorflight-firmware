@@ -38,7 +38,7 @@ PG_RESET_TEMPLATE(pidConfig_t, pidConfig,
     .filter_process_denom = FILTER_PROCESS_DENOM_DEFAULT,
 );
 
-PG_REGISTER_ARRAY_WITH_RESET_FN(pidProfile_t, PID_PROFILE_COUNT, pidProfiles, PG_PID_PROFILE, 0);
+PG_REGISTER_ARRAY_WITH_RESET_FN(pidProfile_t, PID_PROFILE_COUNT, pidProfiles, PG_PID_PROFILE, 1);
 
 void resetPidProfile(pidProfile_t *pidProfile)
 {
@@ -120,6 +120,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .governor.f_limit = 100,
         .governor.tta_gain = 0,
         .governor.tta_limit = 20,
+        .governor.tta_threshold = 0,
         .governor.yaw_weight = 10,
         .governor.cyclic_weight = 10,
         .governor.collective_weight = 50,

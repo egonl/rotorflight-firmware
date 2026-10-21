@@ -48,15 +48,19 @@ where the tail sat at idle and TTA did not act yet. Setups with trim at or
 above idle (including the defaults) are unchanged. Debug mode `TTA` value 0
 now shows this demand instead of the raw yaw.
 
-New `tail_tta_threshold` (‰ tail throttle, default 0 = off) starts TTA
-above the idle, while the tail keeps control down to `tail_motor_idle`.
-Between the two, the tail and the main rotor torque act together. A value
-about 6% below the hover tail throttle is a starting point.
+New per-profile `gov_tta_threshold` (‰ tail throttle, default 0 = off)
+starts TTA above the idle, while the tail keeps control down to
+`tail_motor_idle`. Between the two, the tail and the main rotor torque act
+together. A value about 6% below the hover tail throttle is a starting point.
+It is in the PID profile with `gov_tta_gain` and `gov_tta_limit`, because the
+best value depends on the TTA gain and headspeed. `PG_PID_PROFILE` is bumped
+to v1 (the profile layout had also changed with #457), so PID profiles reset to
+defaults on upgrade.
 
 New `tail_motor_lead` (ms, default 0 = off) drops the tail throttle early
 when it falls, to offset the tail motor spinning down slower than it spins
 up. This reduces overshoot on tail-direction stops. `PG_GENERIC_MIXER_CONFIG`
-is bumped to v1, so mixer settings reset to defaults on upgrade.
+is bumped to v2, so mixer settings reset to defaults on upgrade.
 
 ## MSP Changes
 
@@ -68,7 +72,11 @@ is bumped to v1, so mixer settings reset to defaults on upgrade.
 
 ### MSP_MIXER_CONFIG / MSP_SET_MIXER_CONFIG
 
-- added `tail_motor_lead` (U8, ms) and `tail_tta_threshold` (U8, ‰) at the end; optional on set
+- added `tail_motor_lead` (U8, ms) at the end; optional on set
+
+### MSP_GOVERNOR_PROFILE / MSP_SET_GOVERNOR_PROFILE
+
+- added `gov_tta_threshold` (U8, ‰ tail throttle) at the end; optional on set
 
 ### MSP_MOTOR_CONFIG / MSP_ESC_SENSOR_CONFIG
 

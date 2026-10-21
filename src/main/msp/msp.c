@@ -1778,7 +1778,6 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteS8(dst, mixerConfig()->collective_tilt_correction_pos);
         sbufWriteS8(dst, mixerConfig()->collective_tilt_correction_neg);
         sbufWriteU8(dst, mixerConfig()->tail_motor_lead);
-        sbufWriteU8(dst, mixerConfig()->tail_tta_threshold);
         break;
 
     case MSP_MIXER_INPUTS:
@@ -2150,6 +2149,7 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, currentPidProfile->governor.min_throttle);
         sbufWriteU8(dst, currentPidProfile->governor.fallback_drop);
         sbufWriteU16(dst, currentPidProfile->governor.flags);
+        sbufWriteU8(dst, currentPidProfile->governor.tta_threshold);
         break;
 
     case MSP_SENSOR_CONFIG:
@@ -3335,6 +3335,9 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentPidProfile->governor.fallback_drop = sbufReadU8(src);
             currentPidProfile->governor.flags = sbufReadU16(src);
         }
+        if (sbufBytesRemaining(src) >= 1) {
+            currentPidProfile->governor.tta_threshold = sbufReadU8(src);
+        }
         /* Load new values */
         governorInitProfile(currentPidProfile);
         break;
@@ -3750,9 +3753,8 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             mixerConfigMutable()->collective_tilt_correction_pos = sbufReadS8(src);
             mixerConfigMutable()->collective_tilt_correction_neg = sbufReadS8(src);
         }
-        if (sbufBytesRemaining(src) >= 2) {
+        if (sbufBytesRemaining(src) >= 1) {
             mixerConfigMutable()->tail_motor_lead = sbufReadU8(src);
-            mixerConfigMutable()->tail_tta_threshold = sbufReadU8(src);
         }
         mixerInitConfig();
         break;

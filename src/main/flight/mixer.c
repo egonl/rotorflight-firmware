@@ -65,7 +65,6 @@ typedef struct {
     float           tailCenterTrim;
     float           tailMotorIdle;
     float           tailMotorLead;
-    float           tailTTAThreshold;
     int8_t          tailMotorDirection;
 
     difFilter_t     tailLeadFilter;
@@ -141,7 +140,7 @@ float getCyclicDeflection(void)
     return mixer.cyclicTotal;
 }
 
-float getTailTorqueAssistDemand(void)
+float getTailTorqueAssistDemand(float threshold)
 {
     // Must be called before mixerUpdateMotorizedTail() replaces the yaw input with tail throttle
 
@@ -152,7 +151,8 @@ float getTailTorqueAssistDemand(void)
     // The threshold is never below the idle, where the tail cannot follow any more.
     // Above the idle the tail stays in control, and TTA adds main rotor torque alongside it.
     if (mixerIsTailMode(TAIL_MODE_MOTORIZED)) {
-        return mixer.tailTTAThreshold - (yaw + mixer.tailCenterTrim);
+        threshold = fmaxf(fmaxf(mixer.tailMotorIdle, mixer.tailCenterTrim), threshold);
+        return threshold - (yaw + mixer.tailCenterTrim);
     }
 
     return -yaw;
@@ -690,8 +690,6 @@ void INIT_CODE mixerInitConfig(void)
     mixer.tailMotorIdle = mixerConfig()->tail_motor_idle / 1000.0f;
     mixer.tailCenterTrim = mixerConfig()->tail_center_trim / 1000.0f;
     mixer.tailMotorLead = mixerConfig()->tail_motor_lead / 1000.0f;
-    mixer.tailTTAThreshold = fmaxf(fmaxf(mixer.tailMotorIdle, mixer.tailCenterTrim),
-                                   mixerConfig()->tail_tta_threshold / 1000.0f);
 }
 
 void INIT_CODE mixerInitFilters(void)

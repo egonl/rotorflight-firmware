@@ -214,6 +214,7 @@ typedef struct {
     float           ttaAdd;
     float           ttaGain;
     float           ttaLimit;
+    float           ttaThreshold;
     filter_t        ttaFilter;
 
     // Timeouts
@@ -514,7 +515,7 @@ static float govCalcTTA(void)
 
     if (gov.useTorqueAssist) {
         // Positive when the tail cannot give the requested yaw torque on its own
-        float demand = getTailTorqueAssistDemand();
+        float demand = getTailTorqueAssistDemand(gov.ttaThreshold);
         float TTA = filterApply(&gov.ttaFilter, demand) * getSpoolUpRatio() * gov.ttaGain;
         float headroom = 0;
 
@@ -1528,6 +1529,7 @@ static void INIT_CODE govInitTTA(const pidProfile_t *pidProfile)
     {
         gov.ttaGain = pidProfile->governor.tta_gain / 125.0f;
         gov.ttaLimit = pidProfile->governor.tta_limit / 100.0f;
+        gov.ttaThreshold = pidProfile->governor.tta_threshold / 1000.0f;
         gov.useTorqueAssist = true;
 
         if (gov.govMode == GOV_MODE_ELECTRIC)
@@ -1537,6 +1539,7 @@ static void INIT_CODE govInitTTA(const pidProfile_t *pidProfile)
     {
         gov.ttaGain = 0;
         gov.ttaLimit = 0;
+        gov.ttaThreshold = 0;
         gov.useTorqueAssist = false;
     }
 }
