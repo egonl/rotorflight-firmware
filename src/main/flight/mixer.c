@@ -158,6 +158,17 @@ float getTailTorqueAssistDemand(float threshold)
     return -yaw;
 }
 
+float getTailMotorDemand(void)
+{
+    // Must be called before mixerUpdateMotorizedTail() replaces the yaw input with tail throttle
+
+    // Motorised tail: tail throttle asked for by the yaw PID, before the lead and the idle
+    if (mixerIsTailMode(TAIL_MODE_MOTORIZED))
+        return mixer.input[MIXER_IN_STABILIZED_YAW] * mixerRotationSign() + mixer.tailCenterTrim;
+
+    return 0;
+}
+
 bool mixerSaturated(uint8_t index)
 {
     return (mixer.saturation[index] > 0);

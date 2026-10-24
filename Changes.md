@@ -62,6 +62,17 @@ when it falls, to offset the tail motor spinning down slower than it spins
 up. This reduces overshoot on tail-direction stops. `PG_GENERIC_MIXER_CONFIG`
 is bumped to v2, so mixer settings reset to defaults on upgrade.
 
+New per-profile `gov_use_tta_banking` (default off, electric governor with a
+motorised tail). The headspeed TTA adds is held above the governor target
+instead of being pulled straight back, and wound down as the yaw stick comes
+back from full rate in the TTA direction: held at full rate, and at most
+`gov_tta_bank_rate` (% of headspeed per second, default 20) at zero or beyond.
+When the tail motor is asked for more than 50%, the held speed is released as a
+main throttle cut, so the rotor slowing down helps the tail. The bank is capped
+at `gov_tta_bank_limit` (% of headspeed, default 10) above the target.
+`PG_PID_PROFILE` is bumped to v3, so PID profiles reset to defaults on upgrade. Debug mode `TTA` values 4-7 show the bank (rpm),
+the yaw rate ratio, the release and the tail motor demand.
+
 ## MSP Changes
 
 - API version 12.10 (#484)
@@ -77,6 +88,9 @@ is bumped to v2, so mixer settings reset to defaults on upgrade.
 ### MSP_GOVERNOR_PROFILE / MSP_SET_GOVERNOR_PROFILE
 
 - added `gov_tta_threshold` (U8, ‰ tail throttle) at the end; optional on set
+- added `gov_tta_bank_limit`, `gov_tta_bank_rate` (2 × U8, %) after it;
+  optional on set (both)
+- `gov_use_tta_banking` is bit 7 of `flags`
 
 ### MSP_MOTOR_CONFIG / MSP_ESC_SENSOR_CONFIG
 

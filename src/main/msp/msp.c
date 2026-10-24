@@ -2150,6 +2150,8 @@ static bool mspProcessOutCommand(int16_t cmdMSP, sbuf_t *dst)
         sbufWriteU8(dst, currentPidProfile->governor.fallback_drop);
         sbufWriteU16(dst, currentPidProfile->governor.flags);
         sbufWriteU8(dst, currentPidProfile->governor.tta_threshold);
+        sbufWriteU8(dst, currentPidProfile->governor.tta_bank_limit);
+        sbufWriteU8(dst, currentPidProfile->governor.tta_bank_rate);
         break;
 
     case MSP_SENSOR_CONFIG:
@@ -3337,6 +3339,10 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
         }
         if (sbufBytesRemaining(src) >= 1) {
             currentPidProfile->governor.tta_threshold = sbufReadU8(src);
+        }
+        if (sbufBytesRemaining(src) >= 2) {
+            currentPidProfile->governor.tta_bank_limit = sbufReadU8(src);
+            currentPidProfile->governor.tta_bank_rate = sbufReadU8(src);
         }
         /* Load new values */
         governorInitProfile(currentPidProfile);
