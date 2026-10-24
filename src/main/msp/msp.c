@@ -3337,10 +3337,8 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
             currentPidProfile->governor.fallback_drop = sbufReadU8(src);
             currentPidProfile->governor.flags = sbufReadU16(src);
         }
-        if (sbufBytesRemaining(src) >= 1) {
+        if (sbufBytesRemaining(src) >= 3) {
             currentPidProfile->governor.tta_threshold = sbufReadU8(src);
-        }
-        if (sbufBytesRemaining(src) >= 2) {
             currentPidProfile->governor.tta_bank_limit = sbufReadU8(src);
             currentPidProfile->governor.tta_bank_rate = sbufReadU8(src);
         }
