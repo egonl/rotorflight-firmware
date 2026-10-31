@@ -88,6 +88,7 @@ typedef struct {
     bool            useElectricMotor;
     bool            useTorqueAssist;
     bool            useTTABanking;
+    bool            useTTAAfterPLimit;
     bool            useAutorotation;
 
     // State machine
@@ -220,6 +221,7 @@ typedef struct {
     float           ttaLimit;
     float           ttaThreshold;
     filter_t        ttaFilter;
+    float           ttaP;
 
     // TTA momentum banking
     float           bankHeadSpeed;
@@ -704,6 +706,11 @@ static void govDataUpdate(void)
     gov.C = gov.K * gov.Ki * newError * pidGetDT();
     gov.D = gov.K * gov.Kd * newDiff;
 
+    // Motorised tail: the TTA and bank release share of P is added after the P limit,
+    // so gov_p_limit limits the speed loop only
+    gov.ttaP = gov.useTTAAfterPLimit ? gov.K * gov.Kp * (gov.ttaAdd - gov.bankRelease) : 0;
+    gov.P -= gov.ttaP;
+
     // All precomps
     gov.F = govCalcFeedforward();
 }
@@ -955,7 +962,7 @@ static void govSpoolupControl(float minThrottle, float maxThrottle, float maxRat
     if (gov.pidSpoolupActive)
     {
         // PID limits
-        gov.P = constrainf(gov.P, gov.minP, gov.maxP);
+        gov.P = constrainf(gov.P, gov.minP, gov.maxP) + gov.ttaP;
         gov.I = constrainf(gov.I, gov.minI, gov.maxI);
         gov.D = constrainf(gov.D, gov.minD, gov.maxD);
 
@@ -1010,7 +1017,7 @@ static void govSpoolupControl(float minThrottle, float maxThrottle, float maxRat
 static void govPIDControl(float minThrottle, float maxThrottle, float maxRate)
 {
     // PID limits
-    gov.P = constrainf(gov.P, gov.minP, gov.maxP);
+    gov.P = constrainf(gov.P, gov.minP, gov.maxP) + gov.ttaP;
     gov.I = constrainf(gov.I, gov.minI, gov.maxI);
     gov.D = constrainf(gov.D, gov.minD, gov.maxD);
     gov.F = constrainf(gov.F, gov.minF, gov.maxF);
@@ -1610,6 +1617,7 @@ static void INIT_CODE govInitTTA(const pidProfile_t *pidProfile)
         gov.useTorqueAssist = true;
         gov.useTTABanking = (gov.govMode == GOV_MODE_ELECTRIC) && mixerIsTailMode(TAIL_MODE_MOTORIZED) &&
             (pidProfile->governor.flags & BIT(GOV_FLAG_TTA_BANKING));
+        gov.useTTAAfterPLimit = (gov.govMode == GOV_MODE_ELECTRIC) && mixerIsTailMode(TAIL_MODE_MOTORIZED);
         gov.bankLimit = pidProfile->governor.tta_bank_limit / 100.0f;
         gov.bankRate = pidProfile->governor.tta_bank_rate / 100.0f;
 
@@ -1623,6 +1631,8 @@ static void INIT_CODE govInitTTA(const pidProfile_t *pidProfile)
         gov.ttaThreshold = 0;
         gov.useTorqueAssist = false;
         gov.useTTABanking = false;
+        gov.useTTAAfterPLimit = false;
+        gov.ttaP = 0;
     }
 }
 

@@ -59,8 +59,11 @@ defaults on upgrade.
 
 New `tail_motor_lead` (ms, default 0 = off) drops the tail throttle early
 when it falls, to offset the tail motor spinning down slower than it spins
-up. This reduces overshoot on tail-direction stops. `PG_GENERIC_MIXER_CONFIG`
-is bumped to v2, so mixer settings reset to defaults on upgrade.
+up. This reduces overshoot on tail-direction stops. The lead follows the
+P, I and F terms of the yaw PID only, so D and B spikes don't drop the tail to
+idle, and it takes away at most half of the throttle above `tail_motor_idle`.
+`PG_GENERIC_MIXER_CONFIG` is bumped to v2, so mixer settings reset to defaults
+on upgrade.
 
 New per-profile `gov_use_tta_banking` (default off, electric governor with a
 motorised tail). The headspeed TTA adds is held above the governor target
@@ -72,6 +75,13 @@ main throttle cut, so the rotor slowing down helps the tail. The bank is capped
 at `gov_tta_bank_limit` (% of headspeed, default 10) above the target.
 `PG_PID_PROFILE` is bumped to v3, so PID profiles reset to defaults on upgrade. Debug mode `TTA` values 4-7 show the bank (rpm),
 the yaw rate ratio, the release and the tail motor demand.
+
+With the electric governor and a motorised tail, TTA (and the banking release) is
+now added to the governor P term after `gov_p_limit`, so the P limit only limits
+the speed loop. TTA is limited by `gov_tta_limit` and full throttle. Before, the
+P limit also capped TTA (on a K110 at `gov_p_limit` 20, at about 40% of what
+TTA asked for). Tunes that relied on that cap get stronger TTA. Pitch tails and
+nitro (direct) mode are unchanged.
 
 ## MSP Changes
 

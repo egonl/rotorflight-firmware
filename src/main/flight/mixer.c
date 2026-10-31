@@ -415,6 +415,7 @@ static float mixerCollectiveScale(float SC, float SR, float SP)
 // Tail lead differentiator bandwidth [Hz] and deadband [throttle/s]
 #define TAIL_LEAD_CUTOFF        10.0f
 #define TAIL_LEAD_DEADBAND      2.0f
+#define TAIL_LEAD_LIMIT         0.5f
 
 static void mixerUpdateMotorizedTail(void)
 {
@@ -428,9 +429,14 @@ static void mixerUpdateMotorizedTail(void)
 
         // Lead on falling throttle: the tail spins down slower than it spins up,
         // so drop the command early. Slow changes inside the deadband are ignored.
-        const float rate = difFilterApply(&mixer.tailLeadFilter, throttle);
-        if (rate < -TAIL_LEAD_DEADBAND)
-            throttle += (rate + TAIL_LEAD_DEADBAND) * mixer.tailMotorLead;
+        // The rate comes from the P, I and F terms only, so D and B spikes don't
+        // trigger it, and the lead takes away at most half of the margin above idle.
+        const float slow = pidGetSlowOutput(PID_YAW) * mixerRotationSign() + mixer.tailCenterTrim;
+        const float rate = difFilterApply(&mixer.tailLeadFilter, slow);
+        if (rate < -TAIL_LEAD_DEADBAND) {
+            const float lead = (rate + TAIL_LEAD_DEADBAND) * mixer.tailMotorLead;
+            throttle += fmaxf(lead, -TAIL_LEAD_LIMIT * fmaxf(throttle - mixer.tailMotorIdle, 0));
+        }
 
         // Apply minimum throttle
         throttle = fmaxf(throttle, mixer.tailMotorIdle);
